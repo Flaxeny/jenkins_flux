@@ -2,10 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials') 
-        GIT_CREDENTIALS = credentials('github-token') 
-        
-        DOCKER_IMAGE_NAME = "Flaxen/fastapi-app" 
+        DOCKER_IMAGE_NAME = "flaxen/fastapi-app"
         GIT_REPO_URL = "https://github.com/Flaxeny/jenkins_flux.git"
     }
 
@@ -21,10 +18,15 @@ pipeline {
                 script {
                     def commitHash = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     def dockerImageTag = "${env.DOCKER_IMAGE_NAME}:${commitHash}"
-                    
+
                     sh "docker build -t ${dockerImageTag} ./app"
-                    sh "echo ${env.DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${env.DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-                    sh "docker push ${dockerImageTag}"
+
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh '''
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        '''
+                        sh "docker push ${dockerImageTag}"
+                    }
                 }
             }
         }
@@ -34,15 +36,22 @@ pipeline {
                 script {
                     def commitHash = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     def dockerImageTag = "${env.DOCKER_IMAGE_NAME}:${commitHash}"
-                    
+
+                    // Обновляем манифест
                     sh "yq e '.spec.template.spec.containers[0].image = \"${dockerImageTag}\"' -i k8s/base/fastapi-app/deployment.yaml"
-                    
+
+                    // Git конфигурация
                     sh "git config --global user.email 'romskor11@gmail.com'"
                     sh "git config --global user.name 'romskor'"
                     sh "git add k8s/base/fastapi-app/deployment.yaml"
-                    sh "git commit -m 'ci: update image to ${dockerImageTag}'"
-                    
-                    sh "git push https://x-access-token:${env.GIT_CREDENTIALS}@github.com/Flaxeny/jenkins_flux.git HEAD:master"
+                    sh "git commit -m 'ci: update image to ${dockerImageTag}' || echo 'No changes to commit.'"
+
+                    // Push с токеном GitHub
+                    withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
+                        sh '''
+                            git push https://x-access-token:$GIT_TOKEN@github.com/Flaxeny/jenkins_flux.git HEAD:master
+                        '''
+                    }
                 }
             }
         }
