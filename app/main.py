@@ -1,23 +1,26 @@
 from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
+from bson import ObjectId
 import os
 
 app = FastAPI()
 
+# Настройки MongoDB из переменных окружения
 MONGO_HOST = os.getenv("MONGO_HOST", "mongodb-service")
 MONGO_PORT = int(os.getenv("MONGO_PORT", 27017))
-MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME")
-MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
+MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME", "root")
+MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD", "example")
 
 MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/"
 
+# Подключение к MongoDB
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    client.server_info() 
+    client.server_info()  # Проверка соединения
     db = client.mydatabase
-    print("Successfully connected to MongoDB!")
+    print("✅ Successfully connected to MongoDB")
 except Exception as e:
-    print(f"Error connecting to MongoDB: {e}")
+    print(f"❌ Error connecting to MongoDB: {e}")
     db = None
 
 @app.get("/")
@@ -35,7 +38,12 @@ def create_item(item: dict):
 def read_item(item_id: str):
     if db is None:
         raise HTTPException(status_code=500, detail="Database connection not available")
-    item = db.items.find_one({"_id": item_id})
+    try:
+        obj_id = ObjectId(item_id)  # Преобразование строки в ObjectId
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+    
+    item = db.items.find_one({"_id": obj_id})
     if item:
         item["_id"] = str(item["_id"])
         return item
@@ -48,3 +56,4 @@ def health_check():
         return {"status": "ok"}
     except Exception:
         raise HTTPException(status_code=503, detail="MongoDB connection failed")
+
