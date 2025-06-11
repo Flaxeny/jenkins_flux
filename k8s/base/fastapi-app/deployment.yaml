@@ -14,18 +14,18 @@ spec:
         app: fastapi
     spec:
       containers:
-      - name: fastapi-app
-        image: flaxen/fastapi-app:commitHash 
-        ports:
-        - containerPort: 8000
-        env:
-        - name: MONGO_INITDB_ROOT_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: username
-        - name: MONGO_INITDB_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret
-              key: password
+        - name: fastapi-app
+          image: flaxen/fastapi-app:7219550
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: password
