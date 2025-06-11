@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: fastapi-app
-          image: flaxen/fastapi-app:f621e64
+          image: flaxen/fastapi-app:d411d31
           ports:
             - containerPort: 8000
           env:
